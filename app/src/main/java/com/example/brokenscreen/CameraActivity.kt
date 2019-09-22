@@ -112,7 +112,7 @@ class CameraActivity : AppCompatActivity() {
             val request = Request.Builder()
                 .url("https://app.nanonets.com/api/v2/ImageCategorization/LabelFile/")
                 .post(requestBody)
-                .addHeader("Authorization", Credentials.basic("_TyJF0Ox5DIY-2wlU7Axmf2qOdiOLgh7", "_TyJF0Ox5DIY-2wlU7Axmf2qOdiOLgh7"))
+                .addHeader("Authorization", Credentials.basic("", "")) 
                 .build()
 
                 val thread = Thread(Runnable {
