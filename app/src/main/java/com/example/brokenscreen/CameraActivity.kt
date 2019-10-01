@@ -1,24 +1,14 @@
 package com.example.brokenscreen
 
-import android.content.Context
-import android.content.DialogInterface
-import android.content.Intent
-import android.content.pm.PackageManager
 import android.hardware.Camera
-import android.net.Uri
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE
-import android.provider.MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO
 import android.support.v7.app.AlertDialog
 import android.util.Log
-import android.view.View
-import android.view.Window
 import android.widget.Button
 import android.widget.FrameLayout
-import android.widget.Toast
-import com.example.brokenscreen.CameraPreview
 import okhttp3.*
 import java.io.File
 import java.io.FileNotFoundException
@@ -38,7 +28,6 @@ class CameraActivity : AppCompatActivity() {
     private var mPreview: CameraPreview? = null
     private var TAG = "CameraActivity"
 
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_camera)
@@ -47,12 +36,10 @@ class CameraActivity : AppCompatActivity() {
         mCamera = getCameraInstance()
 
         val params = mCamera?.parameters
-        if (params?.supportedFocusModes!!.contains(
-                Camera.Parameters.FOCUS_MODE_CONTINUOUS_VIDEO
-            )
-        ) {
+        if (params?.supportedFocusModes!!.contains(Camera.Parameters.FOCUS_MODE_CONTINUOUS_VIDEO)) {
             params?.focusMode = Camera.Parameters.FOCUS_MODE_CONTINUOUS_VIDEO
         }
+
         mCamera?.setDisplayOrientation(90)
         mCamera?.parameters = params
 
@@ -67,24 +54,25 @@ class CameraActivity : AppCompatActivity() {
             preview.addView(it)
         }
 
-
         val mPicture = Camera.PictureCallback { data, _ ->
             val builder = AlertDialog.Builder(this!!)
             val dialog = builder.create()
 
             runOnUiThread {
-                //builder.setMessage("Predicting...") //R.string.dialog_fire_missiles
-                // Create the AlertDialog object and return it
                 dialog.setMessage("Predicting...")
                 dialog.show()
             }
 
             Log.d("CameraActivity", "Picture Taken")
+
+            // create image file
             val pictureFile: File = getOutputMediaFile(MEDIA_TYPE_IMAGE) ?: run {
                 Log.d("CameraActivity", ("Error creating media file, check storage permissions"))
                 return@PictureCallback
             }
 
+
+            // write image
             try {
                 val fos = FileOutputStream(pictureFile)
                 fos.write(data)
@@ -99,6 +87,7 @@ class CameraActivity : AppCompatActivity() {
             val client = OkHttpClient()
             val MEDIA_TYPE_JPG = MediaType.parse("image/jpeg")
 
+            // build API request's body
             val requestBody = MultipartBody.Builder()
                 .setType(MultipartBody.FORM)
                 .addFormDataPart("modelId", "07efed96-937c-4824-8649-b17f55934842")
@@ -109,59 +98,60 @@ class CameraActivity : AppCompatActivity() {
                 )
                 .build()
 
+            // build request
             val request = Request.Builder()
                 .url("https://app.nanonets.com/api/v2/ImageCategorization/LabelFile/")
                 .post(requestBody)
-                .addHeader("Authorization", Credentials.basic("", "")) 
+                .addHeader("Authorization", Credentials.basic("", ""))
                 .build()
 
-                val thread = Thread(Runnable {
-                    try {
-                        val response = client.newCall(request).execute()
-                        val body = response.body()?.string()
-                        Log.d("CameraActivity", body)
-                        val json = JSONObject(body)
-                        //val predictions = json.getJSONObject("result").getJSONArray("prediction")
-                        //val predictions = json.getJSONArray("result")
-                        val predictions = json.getJSONArray("result").getJSONObject(0).getJSONArray("prediction")
-                        Log.d("CameraActivity", predictions.toString())
+            // define the thread that will execute the API call
+            val thread = Thread(Runnable {
+                try {
+                    val response = client.newCall(request).execute()
+                    val body = response.body()?.string()
+                    val json = JSONObject(body)
+                    val predictions = json.getJSONArray("result").getJSONObject(0).getJSONArray("prediction")
+                    Log.d(TAG, predictions.toString())
 
 
-                        runOnUiThread {
-                            val sb = StringBuilder()
-                            dialog.dismiss()
-                            //dialog.setMessage(body)
-                            for(i in 0 until predictions.length()) {
-                                predictions.getJSONObject(i).getString("label")
-                                sb.append(predictions.getJSONObject(i).getString("label")).
-                                        append(": ").
-                                        append(predictions.getJSONObject(i).getString("probability"))
+                    runOnUiThread {
+                        val sb = StringBuilder()
+                        dialog.dismiss()
+                        for(i in 0 until predictions.length()) {
+                            predictions.getJSONObject(i).getString("label")
+                            sb.append(predictions.getJSONObject(i).getString("label")).
+                                    append(": ").
+                                    append(predictions.getJSONObject(i).getString("probability"))
 
-                                if(i != predictions.length() - 1) {
-                                    sb.append(System.getProperty("line.separator"))
-                                }
+                            if(i != predictions.length() - 1) {
+                                sb.append(System.getProperty("line.separator"))
                             }
-                            dialog.setMessage(sb)
-                            // iterate to retrieve the labels
-
-                            // Create the AlertDialog object and return it
-                            dialog.show()
                         }
-                    } catch (e: Exception) {
-                        Log.e("CameraActivity", e.message)
-                    }
+                        dialog.setMessage(sb)
+                        // iterate to retrieve the labels
 
-                })
-                thread.start()
+                        // Create the AlertDialog object and return it
+                        dialog.show()
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, e.message)
+                }
+
+            })
+
+            // execute the thread
+            thread.start()
+            // restore the camera preview
             mCamera?.startPreview()
         }
-
 
         val captureButton: Button = findViewById(R.id.button_capture)
         captureButton.setOnClickListener {
             // get an image from the camera
             mCamera?.takePicture(null, null, mPicture)
         }
+
     }
 
 
@@ -180,22 +170,13 @@ class CameraActivity : AppCompatActivity() {
         }
     }
 
-    override fun onPause() {
-        super.onPause()
-        //stopPreviewAndFreeCamera()
-    }
-
-    fun getCameraInstance(): Camera? {
+    private fun getCameraInstance(): Camera? {
         return try {
             Camera.open() // attempt to get a Camera instance
         } catch (e: Exception) {
             // Camera is not available (in use or does not exist)
             null // returns null if camera is unavailable
         }
-    }
-
-    private fun getOutputMediaFileUri(type: Int): Uri {
-        return Uri.fromFile(getOutputMediaFile(type))
     }
 
     private fun getOutputMediaFile(type: Int): File? {
