@@ -8,7 +8,7 @@ import android.view.SurfaceView
 import java.io.IOException
 
 
-// Code taken as it is from: https://developer.android.com/guide/topics/media/camera.html#custom-camera
+// Code taken from: https://developer.android.com/guide/topics/media/camera.html#custom-camera
 
 /** A basic Camera preview class */
 class CameraPreview(
