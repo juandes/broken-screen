@@ -17,3 +17,7 @@ Once the project is opened, click on the green "Play" button to launch it either
 
 ## Tutorial
 For the complete tutorial, and a step-by-step explanation on how to build a custom model using Nanonets, please refer to the complete tutorial at this link:... 
+
+This is the app in action.
+
+![](gif/1.gif)
